@@ -1,0 +1,13 @@
+{
+  "prices": [
+    {
+      "id": 1,
+      "model_id": 1,
+      "subtype_id": 1,
+      "price": 1200,
+      "created_at": "2026-02-10T00:00:00.000Z",
+      "updated_at": "2026-02-10T00:00:00.000Z"
+    }
+  ],
+  "lastId": 1
+}

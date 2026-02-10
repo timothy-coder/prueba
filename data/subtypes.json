@@ -1,0 +1,25 @@
+{
+  "lastId": 2,
+  "subtypes": [
+    {
+      "id": 1,
+      "name": "4x4 Offroad",
+      "type_id": 1,
+      "year": 2022,
+      "version": "Full",
+      "is_active": true,
+      "created_at": "2026-02-10T00:00:00.000Z",
+      "updated_at": "2026-02-10T00:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "name": "4x2 Urbano",
+      "type_id": 1,
+      "year": 2021,
+      "version": "Standard",
+      "is_active": true,
+      "created_at": "2026-02-10T00:00:00.000Z",
+      "updated_at": "2026-02-10T00:00:00.000Z"
+    }
+  ]
+}
