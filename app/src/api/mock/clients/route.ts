@@ -11,7 +11,6 @@ async function readStore(): Promise<ClientStore> {
   try {
     const raw = await fs.readFile(DATA_FILE, "utf-8")
     const parsed = JSON.parse(raw)
-
     return {
       lastId: Number(parsed.lastId || 0),
       clients: Array.isArray(parsed.clients) ? parsed.clients : [],
@@ -32,15 +31,69 @@ async function writeStore(store: ClientStore): Promise<void> {
 }
 
 /* ===============================
-   GET – Listar
+   ✅ GET – Listar / Buscar
+   /api/mock/clients
+   Query params opcionales:
+   - id=1
+   - placa=B7K-123
+   - dni=12345678
+   - email=a@b.com
+   - q=texto (dni/placa/vin/email/celular)
 ================================*/
-export async function GET() {
+export async function GET(request: Request) {
   const store = await readStore()
-  return NextResponse.json(store.clients)
+  const url = new URL(request.url)
+
+  const idParam = url.searchParams.get("id")
+  const placaParam = url.searchParams.get("placa")
+  const dniParam = url.searchParams.get("dni")
+  const emailParam = url.searchParams.get("email")
+  const qParam = url.searchParams.get("q")
+
+  let result = store.clients
+
+  if (idParam) {
+    const id = Number(idParam)
+    result = result.filter((c) => c.id === id)
+  }
+
+  if (placaParam) {
+    const placa = placaParam.trim().toUpperCase()
+    result = result.filter((c) => String(c.placa).toUpperCase() === placa)
+  }
+
+  if (dniParam) {
+    const dni = dniParam.trim()
+    result = result.filter((c) => c.dni === dni)
+  }
+
+  if (emailParam) {
+    const email = emailParam.trim().toLowerCase()
+    result = result.filter((c) => String(c.email).toLowerCase() === email)
+  }
+
+  if (qParam) {
+    const q = qParam.trim().toLowerCase()
+    result = result.filter((c) => {
+      const haystack = [
+        c.dni,
+        c.placa,
+        c.vin,
+        c.email,
+        c.celular,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+      return haystack.includes(q)
+    })
+  }
+
+  return NextResponse.json(result)
 }
 
 /* ===============================
-   POST – Crear
+   ✅ POST – Crear
 ================================*/
 export async function POST(request: Request) {
   try {
@@ -61,12 +114,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Datos incompletos" }, { status: 400 })
     }
 
-    // Duplicados: dni OR email OR placa
     const exists = store.clients.some(
       (c) => c.dni === dni || c.email === email || c.placa === placa
     )
     if (exists) {
-      return NextResponse.json({ message: "Cliente ya existe (DNI, email o placa duplicada)" }, { status: 400 })
+      return NextResponse.json(
+        { message: "Cliente ya existe (DNI, email o placa duplicada)" },
+        { status: 400 }
+      )
     }
 
     const now = new Date().toISOString()
@@ -101,7 +156,7 @@ export async function POST(request: Request) {
 }
 
 /* ===============================
-   PUT – Editar
+   ✅ PUT – Editar
 ================================*/
 export async function PUT(request: Request) {
   try {
@@ -109,16 +164,11 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const id = Number(body.id || 0)
 
-    if (!id) {
-      return NextResponse.json({ message: "Falta id" }, { status: 400 })
-    }
+    if (!id) return NextResponse.json({ message: "Falta id" }, { status: 400 })
 
     const idx = store.clients.findIndex((c) => c.id === id)
-    if (idx === -1) {
-      return NextResponse.json({ message: "Cliente no encontrado" }, { status: 404 })
-    }
+    if (idx === -1) return NextResponse.json({ message: "Cliente no encontrado" }, { status: 404 })
 
-    // Validar duplicados si cambian
     const nextDni = body.dni !== undefined ? String(body.dni).trim() : null
     const nextEmail = body.email !== undefined ? String(body.email).trim().toLowerCase() : null
     const nextPlaca = body.placa !== undefined ? String(body.placa).trim().toUpperCase() : null
@@ -143,14 +193,13 @@ export async function PUT(request: Request) {
     const updated: Client = {
       ...current,
       ...body,
-      id: current.id, // no permitir cambiar id
-      placa: nextPlaca ?? current.placa,
-      email: nextEmail ?? current.email,
+      id: current.id,
       dni: nextDni ?? current.dni,
+      email: nextEmail ?? current.email,
+      placa: nextPlaca ?? current.placa,
       updated_at: new Date().toISOString(),
     }
 
-    // Normalizar números/booleanos si vienen
     if (updated.kms !== undefined) updated.kms = Number(updated.kms || 0)
     if (updated.model_id !== undefined) updated.model_id = Number(updated.model_id || 0)
     if (updated.brand_id !== undefined) updated.brand_id = Number(updated.brand_id || 0)
@@ -169,7 +218,7 @@ export async function PUT(request: Request) {
 }
 
 /* ===============================
-   DELETE – Eliminar
+   ✅ DELETE – Eliminar
 ================================*/
 export async function DELETE(request: Request) {
   try {
@@ -177,14 +226,10 @@ export async function DELETE(request: Request) {
     const body = await request.json()
     const id = Number(body.id || 0)
 
-    if (!id) {
-      return NextResponse.json({ message: "Falta id" }, { status: 400 })
-    }
+    if (!id) return NextResponse.json({ message: "Falta id" }, { status: 400 })
 
     const idx = store.clients.findIndex((c) => c.id === id)
-    if (idx === -1) {
-      return NextResponse.json({ message: "Cliente no encontrado" }, { status: 404 })
-    }
+    if (idx === -1) return NextResponse.json({ message: "Cliente no encontrado" }, { status: 404 })
 
     const deleted = store.clients.splice(idx, 1)[0]
     await writeStore(store)
